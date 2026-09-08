@@ -6,7 +6,8 @@ const SECTIONS = [
     {n: '02', href: '/genre-classifier/', label: 'Trained text classifier'},
     {n: '03', href: '/image-classifier/', label: 'Trained vision classifier'},
     {n: '04', href: '/agent-demo/', label: 'Reasoning agent'},
-    {n: '05', href: '/status/', label: 'Live telemetry'}
+    {n: '05', href: '/status/', label: 'Live telemetry'},
+    {n: '06', href: '/pose-tracker/', label: 'On-device pose estimation'}
 ];
 
 const REQUIREMENTS = [
@@ -18,7 +19,8 @@ const REQUIREMENTS = [
     ['Telemetry, observability, dashboards', <><Link href="/status/">Live telemetry</Link>: real in-process counters and latency percentiles per service, an event log of every agent decision, polled live — not a mockup</>],
     ['Reliability, performance, cost efficiency', 'Model size and architecture chosen for the hardware, not the other way around: 0.5B LLM sized for 1 shared vCPU; classical TF-IDF+LogReg picked over a neural net after it won on accuracy and cost; nginx rate limiting protects the single core from being monopolized'],
     ['Evangelize effective practices', <>Shipping the simpler model after a fair comparison, instead of defaulting to deep learning — see the honest writeup on <Link href="/genre-classifier/">/genre-classifier</Link></>],
-    ['Security controls, operational safeguards', 'HTTP Basic Auth at the edge, TLS throughout, every backend loopback-only, systemd sandboxing per service, request-size and rate limits']
+    ['Security controls, operational safeguards', 'HTTP Basic Auth at the edge, TLS throughout, every backend loopback-only, systemd sandboxing per service, request-size and rate limits'],
+    ['Latency-critical / on-device inference', <><Link href="/pose-tracker/">On-device pose estimation</Link>: a ResNet18-shaped CNN trained from scratch on COCO keypoints (no pretrained backbone), exported to ONNX and run entirely in the browser via multi-threaded WebAssembly &mdash; zero network round-trip per frame, and the only demo here that touches none of the VPS&apos;s single shared vCPU at inference time</>]
 ];
 
 function DiagramBox({title, sub, className = ''}) {
@@ -42,9 +44,10 @@ export default function App() {
             <main className="mx-auto max-w-3xl px-6 py-10">
                 <h1 className="text-3xl font-bold">Self-hosted ML infrastructure</h1>
                 <p className="mt-2 text-muted">
-                    Five small, real, running systems on a single $5/mo 1-vCPU / 2GB VPS &mdash; built to demonstrate
-                    the production side of ML/LLM/CV work: serving, evaluation, guardrails, and observability, across
-                    both text and vision.
+                    Six small, real, running systems &mdash; five backend services sharing a single $5/mo 1-vCPU / 2GB
+                    VPS, plus one that runs entirely in your browser instead &mdash; built to demonstrate the
+                    production side of ML/LLM/CV work: serving, evaluation, guardrails, observability, and on-device
+                    inference, across both text and vision.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-2">
@@ -73,6 +76,10 @@ export default function App() {
                             <p className="text-xs text-muted mt-2 text-center">
                                 agent-orchestrator calls both llama-server and genre-classifier over loopback — it does
                                 not yet call image-classifier. /status polls each service&apos;s own /stats.
+                                <br/>
+                                <Link href="/pose-tracker/">On-device pose estimation</Link> isn&apos;t pictured here on
+                                purpose — it has no backend at all, the model runs client-side in the visitor&apos;s
+                                own browser.
                             </p>
                         </div>
                         <p className="mt-4 text-sm text-muted">
