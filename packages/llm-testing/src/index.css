@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --accent: oklch(0.72 0.15 70);
+  --accent-foreground: oklch(0.18 0.02 70);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Every HeroUI Card renders with a stable `.card` base class, so this one
+   rule covers all cards on this page without touching each usage. */
+.card {
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px -8px color-mix(in oklab, var(--accent) 35%, transparent);
+    transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card {
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+    .card:hover {
+        transform: none;
+    }
+}

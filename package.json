@@ -1,0 +1,8 @@
+{
+  "name": "demos-ui",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ]
+}
