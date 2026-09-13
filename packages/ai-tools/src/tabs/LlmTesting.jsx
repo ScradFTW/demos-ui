@@ -1,18 +1,22 @@
 import React, {useRef, useState} from 'react';
 import {Button, Card, InputGroup, TextField} from '@heroui/react';
 
-const API_URL = '/llm-testing/api/chat/completions';
+// Moved off the same-origin /llm-testing/api/ proxy: the Qwen model now
+// runs on GKE (see the qwen-llm-gke repo) behind its own subdomain rather
+// than the main load balancer, so this is a genuine cross-origin request —
+// the GKE deployment's nginx sidecar adds the CORS headers this needs.
+const API_URL = 'https://llm.bradjobe.dev/v1/chat/completions';
 const SYSTEM_PROMPT =
-    'You are a small, friendly demo assistant running locally on a single-core VPS. ' +
-    'Keep replies short (a few sentences at most) since you are generation-constrained on CPU.';
+    'You are a small, friendly demo assistant running on a single Spot GPU node. ' +
+    'Keep replies short (a few sentences at most) since you are a small quantized model.';
 const MAX_HISTORY_TURNS = 6;
 
 const DETAILS = [
     ['Model', 'Qwen2.5-0.5B-Instruct, quantized to Q4_K_M GGUF (~470MB)'],
-    ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, bound to loopback only"],
-    ['Process management', "systemd unit — auto-restart, memory-capped so it can't affect other sites on this box"],
-    ['Edge', "nginx reverse proxy over the site's existing TLS cert, with per-IP rate limiting and request-size caps"],
-    ['Hardware', '1 shared vCPU, 2GB RAM — generation runs on CPU only, so replies are short and can take a few seconds']
+    ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, running in GKE on a Spot GPU node"],
+    ['Process management', "Kubernetes Deployment on a dedicated GPU node pool — auto-restart, resource-limited"],
+    ['Edge', "GKE Ingress with a Google-managed TLS cert, fronted by a Cloud Armor per-IP rate limit"],
+    ['Hardware', 'NVIDIA T4 GPU (Spot), 2 nodes — generation is GPU-accelerated now, though replies stay short by design']
 ];
 
 function Message({role, text, pending, error}) {
@@ -137,7 +141,7 @@ export default function LlmTesting() {
 
             const elapsedS = (performance.now() - startedAt) / 1000;
             const approxTokPerSec = chunkCount > 0 ? (chunkCount / elapsedS).toFixed(1) : '0';
-            setStatus(`~${approxTokPerSec} tok/s · ${elapsedS.toFixed(1)}s · single CPU core`);
+            setStatus(`~${approxTokPerSec} tok/s · ${elapsedS.toFixed(1)}s · Spot T4 GPU`);
         } catch (err) {
             setMessages((m) => {
                 const copy = [...m];
@@ -168,8 +172,8 @@ export default function LlmTesting() {
         <>
             <h1 className="text-3xl font-bold">Self-hosted LLM demo</h1>
             <p className="mt-2 text-muted">
-                A small language model, running entirely on this site&apos;s own 1-vCPU / 2GB VPS &mdash; no
-                external API calls.
+                A small language model, self-hosted on a dedicated Spot GPU node in this site&apos;s own GKE
+                cluster &mdash; no external API calls.
             </p>
 
             <button
@@ -218,7 +222,7 @@ export default function LlmTesting() {
                         </TextField>
                         <Button type="submit" isDisabled={busy || !input.trim()}>Send</Button>
                     </form>
-                    <p className="text-xs text-muted">{status || 'Rate-limited to a few requests per minute per visitor — it\'s one CPU core doing its best.'}</p>
+                    <p className="text-xs text-muted">{status || 'Rate-limited to a few requests per minute per visitor — it\'s a small model doing its best.'}</p>
                 </Card.Footer>
             </Card>
         </>
