@@ -7,16 +7,20 @@ import {Button, Card, InputGroup, TextField} from '@heroui/react';
 // the GKE deployment's nginx sidecar adds the CORS headers this needs.
 const API_URL = 'https://llm.bradjobe.dev/v1/chat/completions';
 const SYSTEM_PROMPT =
-    'You are a small, friendly demo assistant running on a single Spot GPU node. ' +
+    'You are a small, friendly demo assistant running on a multi-node Kubernetes cluster. ' +
     'Keep replies short (a few sentences at most) since you are a small quantized model.';
 const MAX_HISTORY_TURNS = 6;
 
+// Running CPU-only across 4 Spot nodes for now — GKE has a GPU node pool
+// defined and ready (see qwen-llm-gke's README), just waiting on GCP GPU
+// quota approval. Update these two lines and the tok/s line below once
+// that lands and inference moves back to GPU.
 const DETAILS = [
     ['Model', 'Qwen2.5-0.5B-Instruct, quantized to Q4_K_M GGUF (~470MB)'],
-    ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, running in GKE on a Spot GPU node"],
-    ['Process management', "Kubernetes Deployment on a dedicated GPU node pool — auto-restart, resource-limited"],
+    ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, running in GKE across 4 Spot nodes"],
+    ['Process management', "Kubernetes Deployment with pod anti-affinity spreading replicas across nodes — auto-restart, resource-limited"],
     ['Edge', "GKE Ingress with a Google-managed TLS cert, fronted by a Cloud Armor per-IP rate limit"],
-    ['Hardware', 'NVIDIA T4 GPU (Spot), 2 nodes — generation is GPU-accelerated now, though replies stay short by design']
+    ['Hardware', '4x e2-small Spot nodes, CPU inference — a GPU node pool is provisioned and ready, pending GCP quota approval']
 ];
 
 function Message({role, text, pending, error}) {
@@ -141,7 +145,7 @@ export default function LlmTesting() {
 
             const elapsedS = (performance.now() - startedAt) / 1000;
             const approxTokPerSec = chunkCount > 0 ? (chunkCount / elapsedS).toFixed(1) : '0';
-            setStatus(`~${approxTokPerSec} tok/s · ${elapsedS.toFixed(1)}s · Spot T4 GPU`);
+            setStatus(`~${approxTokPerSec} tok/s · ${elapsedS.toFixed(1)}s · Spot CPU node`);
         } catch (err) {
             setMessages((m) => {
                 const copy = [...m];
@@ -172,7 +176,7 @@ export default function LlmTesting() {
         <>
             <h1 className="text-3xl font-bold">Self-hosted LLM demo</h1>
             <p className="mt-2 text-muted">
-                A small language model, self-hosted on a dedicated Spot GPU node in this site&apos;s own GKE
+                A small language model, self-hosted across multiple Spot nodes in this site&apos;s own GKE
                 cluster &mdash; no external API calls.
             </p>
 
