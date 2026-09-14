@@ -1,13 +1,21 @@
 import React from 'react';
 import {Card, Link} from '@heroui/react';
+import {siGithub} from 'simple-icons';
+
+const BrandIcon = ({icon, size = 16}) => (
+    <svg role="img" viewBox="0 0 24 24" width={size} height={size} fill={`#${icon.hex}`} className="shrink-0">
+        <title>{icon.title}</title>
+        <path d={icon.path}/>
+    </svg>
+);
 
 const SECTIONS = [
-    {n: '01', href: '/llm-testing/', label: 'LLM serving'},
-    {n: '02', href: '/genre-classifier/', label: 'Trained text classifier'},
-    {n: '03', href: '/image-classifier/', label: 'Trained vision classifier'},
-    {n: '04', href: '/agent-demo/', label: 'Reasoning agent'},
-    {n: '05', href: '/status/', label: 'Live telemetry'},
-    {n: '06', href: '/pose-tracker/', label: 'On-device pose estimation'}
+    {n: '01', href: '/llm-testing/', label: 'LLM serving', github: 'https://github.com/ScradFTW/qwen-llm-gke'},
+    {n: '02', href: '/genre-classifier/', label: 'Trained text classifier', github: 'https://github.com/ScradFTW/llm-testing-deploy/tree/main/genre-classifier'},
+    {n: '03', href: '/image-classifier/', label: 'Trained vision classifier', github: 'https://github.com/ScradFTW/llm-testing-deploy/tree/main/image-classifier'},
+    {n: '04', href: '/agent-demo/', label: 'Reasoning agent', github: 'https://github.com/ScradFTW/llm-testing-deploy/tree/main/agent-orchestrator'},
+    {n: '05', href: '/status/', label: 'Live telemetry', github: 'https://github.com/ScradFTW/demos-ui/tree/main/packages/ai-tools'},
+    {n: '06', href: '/pose-tracker/', label: 'On-device pose estimation', github: 'https://github.com/ScradFTW/pose-tracker'}
 ];
 
 const REQUIREMENTS = [
@@ -55,11 +63,22 @@ export default function App() {
 
                 <div className="mt-6 flex flex-col gap-2">
                     {SECTIONS.map((s) => (
-                        <Link key={s.n} href={s.href} className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 no-underline hover:bg-surface-secondary">
-                            <span className="text-accent font-mono text-sm">{s.n}</span>
-                            <span className="flex-1 font-medium text-foreground">{s.label}</span>
-                            <span className="text-muted">&rarr;</span>
-                        </Link>
+                        <div key={s.n} className="flex items-center gap-1 rounded-lg border border-border px-2 hover:bg-surface-secondary">
+                            <Link href={s.href} className="flex flex-1 items-center gap-3 px-2 py-3 no-underline">
+                                <span className="text-accent font-mono text-sm">{s.n}</span>
+                                <span className="flex-1 font-medium text-foreground">{s.label}</span>
+                                <span className="text-muted">&rarr;</span>
+                            </Link>
+                            <Link
+                                href={s.github}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`${s.label} source on GitHub`}
+                                className="shrink-0 p-2 text-muted hover:text-foreground"
+                            >
+                                <BrandIcon icon={siGithub}/>
+                            </Link>
+                        </div>
                     ))}
                 </div>
 
