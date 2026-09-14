@@ -8,7 +8,7 @@ const DETAILS = [
     ['Data', 'Spotify Tracks Dataset (114k rows, 114 raw tags), collapsed into 11 broad genres and deduplicated to remove cross-genre label noise → ~38k clean examples'],
     ['Models compared', 'A from-scratch PyTorch embedding+MLP classifier vs. TF-IDF (char n-grams) + Logistic Regression'],
     ['Result', 'The classical model won: 41% test accuracy / 0.38 macro-F1, vs 36% for the neural net — and vs a 12% majority-class baseline. Shipped the simpler, better, cheaper model.'],
-    ['Serving', 'Flask + waitress (WSGI), systemd-managed, memory-capped, loopback-only, behind nginx with rate limiting']
+    ['Serving', 'Flask + waitress (WSGI) in a container on Cloud Run, no direct public URL (load-balancer-only ingress), behind a Cloud Armor rate limit']
 ];
 
 function Bar({label, probability}) {
@@ -77,7 +77,7 @@ export default function GenreClassifier() {
             <h1 className="text-3xl font-bold">Song genre classifier</h1>
             <p className="mt-2 text-muted">
                 A small model I trained from scratch on ~38k Spotify tracks &mdash; predicting genre from the{' '}
-                <strong>title text alone</strong> (no audio features). Self-hosted on the same VPS as the LLM demo.
+                <strong>title text alone</strong> (no audio features). Self-hosted on Cloud Run, separate from the LLM demo (which runs on its own GKE cluster).
             </p>
 
             <button className="mt-4 text-sm font-medium text-accent" onClick={() => setDetailsOpen((v) => !v)}>

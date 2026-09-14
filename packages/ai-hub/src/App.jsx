@@ -11,16 +11,17 @@ const SECTIONS = [
 ];
 
 const REQUIREMENTS = [
-    ['Deploy/operate model serving in production', <><Link href="/llm-testing/">LLM serving</Link>: OpenAI-compatible API via llama.cpp, systemd-managed (auto-restart, memory-capped), streaming, loopback-only + reverse proxy</>],
+    ['Deploy/operate model serving in production', <><Link href="/llm-testing/">LLM serving</Link>: OpenAI-compatible API via llama.cpp on GKE (Kubernetes-managed restarts/scheduling across a 4-node pool), streaming, its own subdomain behind a dedicated GKE Ingress + Cloud Armor rate limit</>],
     ['Build validation/evaluation pipelines', <><Link href="/genre-classifier/">Trained text classifier</Link>: two models benchmarked head-to-head on a held-out test set (accuracy, macro-F1, confusion matrix, majority-class baseline) before choosing what to ship</>],
     ['Computer vision / multi-modal model development', <><Link href="/image-classifier/">Trained vision classifier</Link>: a CNN trained from scratch (80.6% test accuracy vs. 10% baseline), trained on GPU and exported to ONNX for CPU-only production serving — verified byte-identical predictions before deploying. A second modality alongside the text pipeline, not just more text.</>],
     ['Validate quality in the long tail; catch exceptions early', <><Link href="/agent-demo/">Reasoning agent</Link>&apos;s guardrail layer: empirically found the LLM proposes its one tool for irrelevant messages (and once hallucinated a tool that doesn&apos;t exist) — a deterministic check gates execution instead of trusting the model&apos;s own judgment</>],
     ['Reasoning agent infrastructure: orchestration, tool execution, guardrails', <><Link href="/agent-demo/">Reasoning agent</Link>: a small orchestrator service between the LLM and the classifier tool, with explicit propose → guard → execute → re-ground stages, all traced</>],
     ['Telemetry, observability, dashboards', <><Link href="/status/">Live telemetry</Link>: real in-process counters and latency percentiles per service, an event log of every agent decision, polled live — not a mockup</>],
-    ['Reliability, performance, cost efficiency', 'Model size and architecture chosen for the hardware, not the other way around: 0.5B LLM sized for 1 shared vCPU; classical TF-IDF+LogReg picked over a neural net after it won on accuracy and cost; nginx rate limiting protects the single core from being monopolized'],
+    ['Cloud infrastructure, IaC, CI/CD', 'Runs on GCP (Cloud Run + GKE + a GCE VM for a separate coding-agent project), provisioned entirely by Terraform and deployed by Cloud Build on every push to main — no infrastructure change is ever applied from a laptop, only from the CI pipeline'],
+    ['Reliability, performance, cost efficiency', <>Model size and architecture chosen for the hardware, not the other way around: the 0.5B LLM currently runs CPU-only across 4 Spot nodes while a GCP GPU-quota request is pending, rather than blocking the whole migration on Google&apos;s approval turnaround; classical TF-IDF+LogReg was picked over a neural net for genre classification after it won on accuracy and cost; Cloud Armor throttle rules replace what used to be nginx <code className="bg-surface-secondary px-1 rounded">limit_req</code> zones, at the same effective thresholds</>],
     ['Evangelize effective practices', <>Shipping the simpler model after a fair comparison, instead of defaulting to deep learning — see the honest writeup on <Link href="/genre-classifier/">/genre-classifier</Link></>],
-    ['Security controls, operational safeguards', 'HTTP Basic Auth at the edge, TLS throughout, every backend loopback-only, systemd sandboxing per service, request-size and rate limits'],
-    ['Latency-critical / on-device inference', <><Link href="/pose-tracker/">On-device pose estimation</Link>: a ResNet18-shaped CNN trained from scratch on COCO keypoints (no pretrained backbone), exported to ONNX and run entirely in the browser via multi-threaded WebAssembly &mdash; zero network round-trip per frame, and the only demo here that touches none of the VPS&apos;s single shared vCPU at inference time</>]
+    ['Security controls, operational safeguards', 'TLS via a Google-managed certificate at the edge, every Cloud Run service ingress-locked to load-balancer-only traffic (no direct public *.run.app access), one least-privilege IAM identity per service rather than a shared one, service-to-service calls authenticated with a Google-minted ID token instead of network-path trust, Cloud Armor rate limits per endpoint class'],
+    ['Latency-critical / on-device inference', <><Link href="/pose-tracker/">On-device pose estimation</Link>: a ResNet18-shaped CNN trained from scratch on COCO keypoints (no pretrained backbone), exported to ONNX and run entirely in the browser via WebAssembly (SIMD, single-threaded) &mdash; zero network round-trip per frame, and the only demo here with no backend compute cost at all; its ~60MB of model/runtime assets are served straight from a Cloud Storage bucket + CDN, not through any app service</>]
 ];
 
 function DiagramBox({title, sub, className = ''}) {
@@ -44,10 +45,12 @@ export default function App() {
             <main className="mx-auto max-w-3xl px-6 py-10">
                 <h1 className="text-3xl font-bold">Self-hosted ML infrastructure</h1>
                 <p className="mt-2 text-muted">
-                    Six small, real, running systems &mdash; five backend services sharing a single $5/mo 1-vCPU / 2GB
-                    VPS, plus one that runs entirely in your browser instead &mdash; built to demonstrate the
-                    production side of ML/LLM/CV work: serving, evaluation, guardrails, observability, and on-device
-                    inference, across both text and vision.
+                    Six small, real, running systems &mdash; five backend services on Google Cloud (Cloud Run and GKE),
+                    plus one that runs entirely in your browser instead &mdash; built to demonstrate the production side
+                    of ML/LLM/CV work: serving, evaluation, guardrails, observability, and on-device inference, across
+                    both text and vision. All of it provisioned by Terraform and deployed by Cloud Build on every push
+                    to <code className="bg-surface-secondary px-1 rounded">main</code> &mdash; no infrastructure change
+                    is ever applied from a laptop.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-2">
@@ -65,31 +68,46 @@ export default function App() {
                     <Card.Content>
                         <div className="flex flex-col items-center gap-2 text-sm">
                             <DiagramBox title="Browser" sub="you"/>
-                            <div className="text-xs text-muted">HTTPS + Basic Auth</div>
-                            <DiagramBox title="nginx" sub="TLS · rate limits · auth" className="w-full max-w-xs"/>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full mt-2">
-                                <DiagramBox title="llama-server" sub="Qwen2.5-0.5B · systemd"/>
-                                <DiagramBox title="genre-classifier" sub="Flask+waitress · systemd"/>
-                                <DiagramBox title="image-classifier" sub="ONNX Runtime · systemd"/>
-                                <DiagramBox title="agent-orchestrator" sub="Flask+waitress · systemd"/>
+                            <div className="text-xs text-muted">HTTPS</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-1">
+                                <div className="flex flex-col items-center gap-2">
+                                    <DiagramBox title="Global Load Balancer" sub="Cloud Armor · managed TLS cert" className="w-full"/>
+                                    <div className="grid grid-cols-3 gap-2 w-full mt-1">
+                                        <DiagramBox title="genre-classifier" sub="Cloud Run"/>
+                                        <DiagramBox title="image-classifier" sub="Cloud Run"/>
+                                        <DiagramBox title="agent-orchestrator" sub="Cloud Run"/>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-2">
+                                    <DiagramBox title="GKE Ingress" sub="llm.bradjobe.dev · own Cloud Armor policy" className="w-full"/>
+                                    <DiagramBox title="llama-server" sub="Qwen2.5-0.5B · 4-node CPU pool (Spot VMs)" className="w-full"/>
+                                </div>
                             </div>
                             <p className="text-xs text-muted mt-2 text-center">
-                                agent-orchestrator calls both llama-server and genre-classifier over loopback — it does
-                                not yet call image-classifier. /status polls each service&apos;s own /stats.
+                                The LLM demo is deliberately on its own subdomain and its own GKE Ingress, not the
+                                shared load balancer above — the GKE cluster only exists to run this one demo.
+                                agent-orchestrator calls llama-server over that public subdomain and calls
+                                genre-classifier over a private Cloud Run URL authenticated with a Google-minted ID
+                                token; it does not yet call image-classifier. /status polls each service&apos;s own
+                                /stats.
                                 <br/>
                                 <Link href="/pose-tracker/">On-device pose estimation</Link> isn&apos;t pictured here on
                                 purpose — it has no backend at all, the model runs client-side in the visitor&apos;s
-                                own browser.
+                                own browser (its large model/runtime files are served straight from a Cloud Storage
+                                bucket + CDN behind the same load balancer, though).
                             </p>
                         </div>
                         <p className="mt-4 text-sm text-muted">
-                            Every backend service: runs as its own unprivileged systemd user, binds to{' '}
-                            <code className="bg-surface-secondary px-1 rounded">127.0.0.1</code> only (never reachable
-                            except through nginx), has a hard <code className="bg-surface-secondary px-1 rounded">MemoryMax</code>,
-                            and is sandboxed (<code className="bg-surface-secondary px-1 rounded">ProtectSystem=strict</code>,{' '}
-                            <code className="bg-surface-secondary px-1 rounded">NoNewPrivileges</code>). Same pattern
-                            repeated across every service rather than one-off setups &mdash; the kind of consistency
-                            that matters once there&apos;s more than one service to operate.
+                            Every Cloud Run service: gets its own least-privilege runtime{' '}
+                            <code className="bg-surface-secondary px-1 rounded">service account</code> (never shared
+                            with another service), is ingress-locked to{' '}
+                            <code className="bg-surface-secondary px-1 rounded">INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER</code>{' '}
+                            (no direct <code className="bg-surface-secondary px-1 rounded">*.run.app</code> access — the
+                            load balancer is the only public path in), and any service-to-service call is authenticated
+                            with a Google-minted identity token scoped to exactly the calling service&apos;s account,
+                            not just network-path trust. Same pattern repeated across every service rather than
+                            one-off setups &mdash; the kind of consistency that matters once there&apos;s more than one
+                            service to operate.
                         </p>
                     </Card.Content>
                 </Card>

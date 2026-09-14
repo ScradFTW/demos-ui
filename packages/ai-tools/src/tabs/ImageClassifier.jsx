@@ -8,7 +8,7 @@ const DETAILS = [
     ['Task', '10-class image classification (CIFAR-10: airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck), 32×32 RGB input'],
     ['Model', 'A small custom CNN (3 conv blocks + 2 FC layers, ~1M params), trained from scratch for 15 epochs with data augmentation'],
     ['Result', '80.6% test accuracy vs. a 10% majority-class baseline (full per-class report + confusion matrix in the repo)'],
-    ['Train vs. serve split', 'Trained with PyTorch on a GPU (workstation, not this VPS), then exported to ONNX and verified to produce byte-identical predictions before deploying — this box runs ONNX Runtime only, ~50MB memory, no GPU and no PyTorch needed for inference'],
+    ['Train vs. serve split', 'Trained with PyTorch on a GPU (workstation, not this Cloud Run container), then exported to ONNX and verified to produce byte-identical predictions before deploying — this container runs ONNX Runtime only, ~50MB memory, no GPU and no PyTorch needed for inference'],
     ['Out-of-distribution behavior', "Upload something that isn't one of the 10 classes (a face, a landscape) and watch the confidence scores — it doesn't confidently misclassify, the top score usually drops well below 50%"]
 ];
 

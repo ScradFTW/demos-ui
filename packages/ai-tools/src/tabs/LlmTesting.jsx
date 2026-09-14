@@ -20,7 +20,7 @@ const DETAILS = [
     ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, running in GKE across 4 Spot nodes"],
     ['Process management', "Kubernetes Deployment with pod anti-affinity spreading replicas across nodes — auto-restart, resource-limited"],
     ['Edge', "GKE Ingress with a Google-managed TLS cert, fronted by a Cloud Armor per-IP rate limit"],
-    ['Hardware', '4x e2-small Spot nodes, CPU inference — a GPU node pool is provisioned and ready, pending GCP quota approval']
+    ['Hardware', '4x e2-standard-2 Spot nodes, CPU inference — a GPU node pool is provisioned and ready, pending GCP quota approval']
 ];
 
 function Message({role, text, pending, error}) {
@@ -204,7 +204,7 @@ export default function LlmTesting() {
             <Card className="mt-6">
                 <Card.Content className="flex flex-col gap-3 min-h-[320px] max-h-[480px] overflow-y-auto">
                     {messages.length === 0 &&
-                    <Message role="assistant" text="Hi! I'm a tiny model running on a single CPU core. Ask me something short." />
+                    <Message role="assistant" text="Hi! I'm a tiny model running on a small Kubernetes cluster. Ask me something short." />
                     }
                     {messages.map((m, i) => <Message key={i} {...m} />)}
                 </Card.Content>
