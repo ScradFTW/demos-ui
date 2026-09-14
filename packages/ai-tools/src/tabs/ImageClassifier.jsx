@@ -1,5 +1,6 @@
 import React, {useRef, useState} from 'react';
 import {Button, Card} from '@heroui/react';
+import {postJson} from '../lib/apiRequest';
 
 const API_URL = '/image-classifier/api/predict';
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -56,35 +57,23 @@ export default function ImageClassifier() {
         setStatus('classifying…');
         const startedAt = performance.now();
 
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({image: dataUrl})
-            });
+        const result = await postJson(API_URL, {image: dataUrl});
+        const elapsedS = (performance.now() - startedAt) / 1000;
 
-            if (res.status === 429) {
-                setError('Rate limited — this demo allows a few requests per minute per visitor. Try again shortly.');
-                setStatus('rate limited');
-                return;
-            }
-
-            const data = await res.json();
-            if (!res.ok) {
-                setError(data.error || `Backend returned ${res.status}`);
-                setStatus('error');
-                return;
-            }
-
-            setResult(data);
-            const elapsedS = (performance.now() - startedAt) / 1000;
-            setStatus(`${elapsedS.toFixed(2)}s round trip · ${data.elapsed_ms}ms model inference`);
-        } catch (err) {
+        if (result.kind === 'rate_limited') {
+            setError('Rate limited — this demo allows a few requests per minute per visitor. Try again shortly.');
+            setStatus('rate limited');
+        } else if (result.kind === 'error') {
+            setError(result.message);
+            setStatus('error');
+        } else if (result.kind === 'network_error') {
             setError('Something went wrong reaching the classifier. Please try again.');
             setStatus('error');
-        } finally {
-            setBusy(false);
+        } else {
+            setResult(result.data);
+            setStatus(`${elapsedS.toFixed(2)}s round trip · ${result.data.elapsed_ms}ms model inference`);
         }
+        setBusy(false);
     }
 
     function onDrop(e) {

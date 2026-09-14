@@ -9,7 +9,7 @@ const BrandIcon = ({icon, size = 16}) => (
     </svg>
 );
 
-const SECTIONS = [
+export const SECTIONS = [
     {n: '01', href: '/llm-testing/', label: 'LLM serving', github: 'https://github.com/ScradFTW/qwen-llm-gke'},
     {n: '02', href: '/genre-classifier/', label: 'Trained text classifier', github: 'https://github.com/ScradFTW/llm-testing-deploy/tree/main/genre-classifier'},
     {n: '03', href: '/image-classifier/', label: 'Trained vision classifier', github: 'https://github.com/ScradFTW/llm-testing-deploy/tree/main/image-classifier'},

@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {Button, Card, InputGroup, Link, TextField} from '@heroui/react';
+import {postJson} from '../lib/apiRequest';
 
 const API_URL = '/agent-demo/api/chat';
 
@@ -61,50 +62,39 @@ export default function AgentDemo({onNavigate}) {
         setBusy(true);
         setStatus('thinking…');
 
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({message: userText})
-            });
+        const result = await postJson(API_URL, {message: userText});
 
-            if (res.status === 429) {
-                setMessages((m) => {
-                    const copy = [...m];
-                    copy[pendingIndex] = {role: 'assistant', text: 'Rate limited — try again in a moment.', error: true};
-                    return copy;
-                });
-                setStatus('rate limited');
-                return;
-            }
-
-            const data = await res.json();
-            if (!res.ok) {
-                setMessages((m) => {
-                    const copy = [...m];
-                    copy[pendingIndex] = {role: 'assistant', text: data.error || `Backend returned ${res.status}`, error: true};
-                    return copy;
-                });
-                setStatus('error');
-                return;
-            }
-
+        if (result.kind === 'rate_limited') {
             setMessages((m) => {
                 const copy = [...m];
-                copy[pendingIndex] = {role: 'assistant', text: data.reply, trace: data.trace};
+                copy[pendingIndex] = {role: 'assistant', text: 'Rate limited — try again in a moment.', error: true};
                 return copy;
             });
-            setStatus(`${data.trace.elapsed_ms}ms total`);
-        } catch (err) {
+            setStatus('rate limited');
+        } else if (result.kind === 'error') {
+            setMessages((m) => {
+                const copy = [...m];
+                copy[pendingIndex] = {role: 'assistant', text: result.message, error: true};
+                return copy;
+            });
+            setStatus('error');
+        } else if (result.kind === 'network_error') {
             setMessages((m) => {
                 const copy = [...m];
                 copy[pendingIndex] = {role: 'assistant', text: 'Something went wrong reaching the agent. Please try again.', error: true};
                 return copy;
             });
             setStatus('error');
-        } finally {
-            setBusy(false);
+        } else {
+            const {data} = result;
+            setMessages((m) => {
+                const copy = [...m];
+                copy[pendingIndex] = {role: 'assistant', text: data.reply, trace: data.trace};
+                return copy;
+            });
+            setStatus(`${data.trace.elapsed_ms}ms total`);
         }
+        setBusy(false);
     }
 
     function onSubmit(e) {

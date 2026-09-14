@@ -1,6 +1,13 @@
 # Deploys on push to main when packages/ai-hub/** changes — see
 # bradjobe-dev-infra's cloudbuild_triggers.tf (google_cloudbuild_trigger.app["ai-hub"]).
 steps:
+  - id: test
+    name: node:22
+    entrypoint: bash
+    args:
+      - -c
+      - npm ci && npm run test --workspace=ai-hub
+
   - id: build
     name: gcr.io/cloud-builders/docker
     args:

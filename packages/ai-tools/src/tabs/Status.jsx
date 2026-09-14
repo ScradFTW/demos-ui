@@ -3,7 +3,7 @@ import {Card, Link} from '@heroui/react';
 
 const DOT = {good: 'bg-success', warning: 'bg-warning', critical: 'bg-danger'};
 
-function fmtMs(v) {
+export function fmtMs(v) {
     if (v === null || v === undefined) return '—';
     return `${v.toFixed(0)}ms`;
 }
@@ -52,7 +52,7 @@ function DistributionBars({counts, emptyHint}) {
     );
 }
 
-function eventDetail(e) {
+export function eventDetail(e) {
     if (e.type === 'tool_executed') return `"${e.title}" → ${e.genre} (${(e.confidence * 100).toFixed(0)}%)`;
     if (e.type === 'tool_blocked') return `"${e.user_message}" (model proposed: "${e.proposed}")`;
     if (e.type === 'tool_malformed') return `"${e.user_message}" (raw: ${JSON.stringify(e.raw_model_output).slice(0, 60)})`;

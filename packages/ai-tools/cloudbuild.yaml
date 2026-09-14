@@ -1,6 +1,13 @@
 # Deploys on push to main when packages/ai-tools/** changes — see
 # bradjobe-dev-infra's cloudbuild_triggers.tf (google_cloudbuild_trigger.app["ai-tools"]).
 steps:
+  - id: test
+    name: node:22
+    entrypoint: bash
+    args:
+      - -c
+      - npm ci && npm run test --workspace=ai-tools
+
   - id: build
     name: gcr.io/cloud-builders/docker
     args:

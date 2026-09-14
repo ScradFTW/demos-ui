@@ -1,5 +1,6 @@
 import React, {useRef, useState} from 'react';
 import {Button, Card, InputGroup, TextField} from '@heroui/react';
+import {extractSseDeltas} from '../lib/sse';
 
 // Moved off the same-origin /llm-testing/api/ proxy: the Qwen model now
 // runs on GKE (see the qwen-llm-gke repo) behind its own subdomain rather
@@ -105,31 +106,19 @@ export default function LlmTesting() {
             while (true) {
                 const {value, done} = await reader.read();
                 if (done) break;
-                buf += decoder.decode(value, {stream: true});
-                const lines = buf.split('\n');
-                buf = lines.pop();
+                const chunkText = decoder.decode(value, {stream: true});
+                const {buf: nextBuf, deltas} = extractSseDeltas(buf, chunkText);
+                buf = nextBuf;
 
-                for (const line of lines) {
-                    const trimmed = line.trim();
-                    if (!trimmed.startsWith('data:')) continue;
-                    const payload = trimmed.slice(5).trim();
-                    if (payload === '[DONE]') continue;
-                    try {
-                        const json = JSON.parse(payload);
-                        const delta = json.choices?.[0]?.delta?.content;
-                        if (delta) {
-                            fullText += delta;
-                            chunkCount += 1;
-                            const text = fullText;
-                            setMessages((m) => {
-                                const copy = [...m];
-                                copy[pendingIndex.current] = {role: 'assistant', text};
-                                return copy;
-                            });
-                        }
-                    } catch {
-                        // ignore partial/non-JSON keep-alive lines
-                    }
+                for (const delta of deltas) {
+                    fullText += delta;
+                    chunkCount += 1;
+                    const text = fullText;
+                    setMessages((m) => {
+                        const copy = [...m];
+                        copy[pendingIndex.current] = {role: 'assistant', text};
+                        return copy;
+                    });
                 }
             }
 
