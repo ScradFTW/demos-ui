@@ -2,26 +2,26 @@ import React, {useRef, useState} from 'react';
 import {Button, Card, InputGroup, TextField} from '@heroui/react';
 import {extractSseDeltas} from '../lib/sse';
 
-// Moved off the same-origin /llm-testing/api/ proxy: the Qwen model now
-// runs on GKE (see the qwen-llm-gke repo) behind its own subdomain rather
-// than the main load balancer, so this is a genuine cross-origin request —
-// the GKE deployment's nginx sidecar adds the CORS headers this needs.
+// Moved off the same-origin /llm-testing/api/ proxy: the Qwen model runs
+// on GKE (see the qwen-llm-gke repo) at its own subdomain, a host rule on
+// the site's shared load balancer, so this is a genuine cross-origin
+// request — llama-server itself adds the CORS headers this needs.
 const API_URL = 'https://llm.bradjobe.dev/v1/chat/completions';
 const SYSTEM_PROMPT =
-    'You are a small, friendly demo assistant running on a multi-node Kubernetes cluster. ' +
+    'You are a small, friendly demo assistant running on a small Kubernetes cluster. ' +
     'Keep replies short (a few sentences at most) since you are a small quantized model.';
 const MAX_HISTORY_TURNS = 6;
 
-// Running CPU-only across 4 Spot nodes for now — GKE has a GPU node pool
+// Running CPU-only on one Spot node for now — GKE has a GPU node pool
 // defined and ready (see qwen-llm-gke's README), just waiting on GCP GPU
 // quota approval. Update these two lines and the tok/s line below once
 // that lands and inference moves back to GPU.
 const DETAILS = [
     ['Model', 'Qwen2.5-0.5B-Instruct, quantized to Q4_K_M GGUF (~470MB)'],
-    ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, running in GKE across 4 Spot nodes"],
-    ['Process management', "Kubernetes Deployment with pod anti-affinity spreading replicas across nodes — auto-restart, resource-limited"],
-    ['Edge', "GKE Ingress with a Google-managed TLS cert, fronted by a Cloud Armor per-IP rate limit"],
-    ['Hardware', '4x e2-standard-2 Spot nodes, CPU inference — a GPU node pool is provisioned and ready, pending GCP quota approval']
+    ['Serving', "llama.cpp's llama-server, OpenAI-compatible API, running in GKE on a Spot node"],
+    ['Process management', "Kubernetes Deployment — auto-restart and rescheduling onto a replacement node if the Spot VM is reclaimed, resource-limited"],
+    ['Edge', "The site's shared Global HTTPS Load Balancer: a host rule for llm.bradjobe.dev routes to the pod through a standalone GKE NEG, with a Google-managed TLS cert and a Cloud Armor per-IP rate limit"],
+    ['Hardware', '1x e2-standard-2 Spot node, CPU inference — a GPU node pool is provisioned and ready, pending GCP quota approval']
 ];
 
 function Message({role, text, pending, error}) {
@@ -165,7 +165,7 @@ export default function LlmTesting() {
         <>
             <h1 className="text-3xl font-bold">Self-hosted LLM demo</h1>
             <p className="mt-2 text-muted">
-                A small language model, self-hosted across multiple Spot nodes in this site&apos;s own GKE
+                A small language model, self-hosted on a Spot node in this site&apos;s own GKE
                 cluster &mdash; no external API calls.
             </p>
 

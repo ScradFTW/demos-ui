@@ -19,14 +19,14 @@ export const SECTIONS = [
 ];
 
 const REQUIREMENTS = [
-    ['Deploy/operate model serving in production', <><Link href="/llm-testing/">LLM serving</Link>: OpenAI-compatible API via llama.cpp on GKE (Kubernetes-managed restarts/scheduling across a 4-node pool), streaming, its own subdomain behind a dedicated GKE Ingress + Cloud Armor rate limit</>],
+    ['Deploy/operate model serving in production', <><Link href="/llm-testing/">LLM serving</Link>: OpenAI-compatible API via llama.cpp on GKE (Kubernetes-managed restarts and rescheduling on a Spot node pool), streaming, its own subdomain on the shared load balancer via a standalone GKE NEG + Cloud Armor rate limit</>],
     ['Build validation/evaluation pipelines', <><Link href="/genre-classifier/">Trained text classifier</Link>: two models benchmarked head-to-head on a held-out test set (accuracy, macro-F1, confusion matrix, majority-class baseline) before choosing what to ship</>],
     ['Computer vision / multi-modal model development', <><Link href="/image-classifier/">Trained vision classifier</Link>: a CNN trained from scratch (80.6% test accuracy vs. 10% baseline), trained on GPU and exported to ONNX for CPU-only production serving — verified byte-identical predictions before deploying. A second modality alongside the text pipeline, not just more text.</>],
     ['Validate quality in the long tail; catch exceptions early', <><Link href="/agent-demo/">Reasoning agent</Link>&apos;s guardrail layer: empirically found the LLM proposes its one tool for irrelevant messages (and once hallucinated a tool that doesn&apos;t exist) — a deterministic check gates execution instead of trusting the model&apos;s own judgment</>],
     ['Reasoning agent infrastructure: orchestration, tool execution, guardrails', <><Link href="/agent-demo/">Reasoning agent</Link>: a small orchestrator service between the LLM and the classifier tool, with explicit propose → guard → execute → re-ground stages, all traced</>],
     ['Telemetry, observability, dashboards', <><Link href="/status/">Live telemetry</Link>: real in-process counters and latency percentiles per service, an event log of every agent decision, polled live — not a mockup</>],
     ['Cloud infrastructure, IaC, CI/CD', 'Runs on GCP (Cloud Run + GKE + a GCE VM for a separate coding-agent project), provisioned entirely by Terraform and deployed by Cloud Build on every push to main — no infrastructure change is ever applied from a laptop, only from the CI pipeline'],
-    ['Reliability, performance, cost efficiency', <>Model size and architecture chosen for the hardware, not the other way around: the 0.5B LLM currently runs CPU-only across 4 Spot nodes while a GCP GPU-quota request is pending, rather than blocking the whole migration on Google&apos;s approval turnaround; classical TF-IDF+LogReg was picked over a neural net for genre classification after it won on accuracy and cost; Cloud Armor throttle rules replace what used to be nginx <code className="bg-surface-secondary px-1 rounded">limit_req</code> zones, at the same effective thresholds</>],
+    ['Reliability, performance, cost efficiency', <>Model size and architecture chosen for the hardware, not the other way around: the 0.5B LLM currently runs CPU-only on a single Spot node while a GCP GPU-quota request is pending, rather than blocking the whole migration on Google&apos;s approval turnaround; classical TF-IDF+LogReg was picked over a neural net for genre classification after it won on accuracy and cost; Cloud Armor throttle rules replace what used to be nginx <code className="bg-surface-secondary px-1 rounded">limit_req</code> zones, at the same effective thresholds</>],
     ['Evangelize effective practices', <>Shipping the simpler model after a fair comparison, instead of defaulting to deep learning — see the honest writeup on <Link href="/genre-classifier/">/genre-classifier</Link></>],
     ['Security controls, operational safeguards', 'TLS via a Google-managed certificate at the edge, every Cloud Run service ingress-locked to load-balancer-only traffic (no direct public *.run.app access), one least-privilege IAM identity per service rather than a shared one, service-to-service calls authenticated with a Google-minted ID token instead of network-path trust, Cloud Armor rate limits per endpoint class'],
     ['Latency-critical / on-device inference', <><Link href="/pose-tracker/">On-device pose estimation</Link>: a ResNet18-shaped CNN trained from scratch on COCO keypoints (no pretrained backbone), exported to ONNX and run entirely in the browser via WebAssembly (SIMD, single-threaded) &mdash; zero network round-trip per frame, and the only demo here with no backend compute cost at all; its ~60MB of model/runtime assets are served straight from a Cloud Storage bucket + CDN, not through any app service</>]
@@ -98,15 +98,16 @@ export default function App() {
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-center gap-2">
-                                    <DiagramBox title="GKE Ingress" sub="llm.bradjobe.dev · own Cloud Armor policy" className="w-full"/>
-                                    <DiagramBox title="llama-server" sub="Qwen2.5-0.5B · 4-node CPU pool (Spot VMs)" className="w-full"/>
+                                    <DiagramBox title="llm.bradjobe.dev" sub="same load balancer · standalone GKE NEG" className="w-full"/>
+                                    <DiagramBox title="llama-server" sub="Qwen2.5-0.5B · CPU on a Spot VM (GKE)" className="w-full"/>
                                 </div>
                             </div>
                             <p className="text-xs text-muted mt-2 text-center">
-                                The LLM demo is deliberately on its own subdomain and its own GKE Ingress, not the
-                                shared load balancer above — the GKE cluster only exists to run this one demo.
-                                agent-orchestrator calls llama-server over that public subdomain and calls
-                                genre-classifier over a private Cloud Run URL authenticated with a Google-minted ID
+                                The LLM demo gets its own subdomain, but it&apos;s just another host rule on the same
+                                load balancer, routed straight to the pod through a standalone GKE NEG — one load
+                                balancer and one Cloud Armor policy for everything. agent-orchestrator calls
+                                llama-server over that public subdomain and calls genre-classifier&apos;s private Cloud
+                                Run URL from inside the VPC (Direct VPC egress), authenticated with a Google-minted ID
                                 token; it does not yet call image-classifier. /status polls each service&apos;s own
                                 /stats.
                                 <br/>
